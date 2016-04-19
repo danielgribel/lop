@@ -16,7 +16,7 @@
 using namespace std;
 
 const double MAX_FLOAT = std::numeric_limits<double>::max();
-const string DATASET = "data/test.csv";
+const string DATASET = "data/n0500/n0500d001-1";
 int** matrix;
 int cost;
 int n;
@@ -40,25 +40,23 @@ int getCost(int* s, int** matrix, int n) {
 void print(const int *v, const int size) {
 	if (v != 0) {
 		for (int i = 0; i < size; i++) {
-			printf("%4d", v[i]);
+			printf("%d ", v[i]);
 		}
 		printf("\n");
 	}
 }
 
-double testSwap(int *v, const int i, const int j, double cost) {
+int testSwap(int *v, const int i, const int j) {
 	int firstElement = v[i];
 	int secondElement = v[j];
-	double newcost = 0.0;
+	int newcost = cost;
 
 	newcost = newcost - matrix[firstElement][secondElement];
 	newcost = newcost + matrix[secondElement][firstElement];
 
 	for(int i1 = i+1; i1 < j; i1++) {
-		newcost = newcost - matrix[firstElement][v[i1]];
-		newcost = newcost + matrix[secondElement][v[i1]];
-		newcost = newcost - matrix[v[i1]][secondElement];
-		newcost = newcost + matrix[v[i1]][firstElement];
+		newcost = newcost - matrix[firstElement][v[i1]] + matrix[secondElement][v[i1]];
+		newcost = newcost - matrix[v[i1]][secondElement] + matrix[v[i1]][firstElement];
 	}
 
 	return newcost;
@@ -69,6 +67,16 @@ void swap(int *v, const int i, const int j) {
 	t = v[i];
 	v[i] = v[j];
 	v[j] = t;
+}
+
+int testRotateLeft(int *v, const int i, const int n) {
+	int newcost = cost;
+
+	for(int j = i+1; j < n; j++) {
+		newcost = newcost - matrix[v[i]][v[j]] + matrix[v[j]][v[i]];
+	}
+
+	return newcost;
 }
 
 void rotateLeft(int *v, const int start, const int n) {
@@ -130,32 +138,6 @@ int* perturbation(int* s0, int k, int n) {
     return s;
 }
 
-void localSearch(int* s, const int n) {
-	int* sh;
-	shuffle(sh, n);
-	double newcost;
-	bool improving = true;
-
-	/*for(int i1 = 0; i1 < n; i1++) {
-		i = sh[i1];
-		rotateLeft(*s, i, n);
-	}*/
-	
-	while(improving) {
-		for(int i = 0; i < n; i++) {
-			improving = false;
-			for(int j = i+1; j < n; j++) {
-				newcost = testSwap(s, i, j, cost);
-				if(newcost < cost) {
-					swap(s, i , j);
-					cost = newcost;
-					improving = true;
-				}
-			}
-		}
-	}
-}
-
 void loadData(string input) {
 	int x, y;
 	ifstream in(input.c_str());
@@ -182,70 +164,79 @@ void loadData(string input) {
 	in.close();
 }
 
-/*void loadData() {
-	ifstream file( (INPUT_PATH + instance.file).c_str() );
+void localSearch(int* s, const int n) {
+	//int sh[n];
+	//shuffle(sh, n);
 
-	int firstColumn = 0;
-	int lastColumn = d + 1;
-
-	if(instance.hasId == true) {
-		lastColumn++;
+	int i;
+	int it = 0;
+	int newcost;
+	bool improving = true;
+	
+	while(improving) {
+		it++;
+		for(int i = 0; i < n; i++) {
+			//i = sh[i1];
+			improving = false;
+			newcost = testRotateLeft(s, i, n);
+			if(newcost > cost) {
+				rotateLeft(s, i, n);
+				cost = newcost;
+				improving = true;
+			}
+			for(int j = i+1; j < n; j++) {
+				newcost = testSwap(s, i, j);
+				if(newcost > cost) {
+					swap(s, i, j);
+					cost = newcost;
+					improving = true;
+				}
+			}
+		}
 	}
-
-    for(int row = 0; row < n; row++) {
-        string line;
-        getline(file, line);
-        if ( !file.good() ) {
-        	cout << "Error on file line reading" << endl;
-            break;
-        }
-
-        stringstream iss(line);
-        int j = 0;
-
-        for(int col = firstColumn; col < lastColumn; col++) {
-            string val;
-            getline(iss, val, instance.delimiter);
-            //data[row][j] = atof(val.c_str());
-            //j++;
-        }
-    }
-}*/
+}
 
 int main() {
+	clock_t begin = clock();
+
 	srand(1607);
 	loadData(DATASET);
 
 	int s0[n];
 	shuffle(s0, n);
 
-	double costS;
-	double bestCost = MAX_FLOAT;
+	int bestCost = 0;
 	int* bestSolution = new int[n];
 	int p = 1;
-	int numPert = 1000;
-	int numExchanges = 0.4*n;
-	double costS_;
+	int numPert = 100;
+	int numExchanges = 5;
 
 	cost = getCost(s0, matrix, n);
-	printf("f(x) = %d\n", cost);
 
 	localSearch(s0, n);
-	printf("f(x) = %d\n", cost);
+	printf("f(0) = %d\n", cost);
 
-	/*while(p <= numPert) {
+	if(cost > bestCost) {
+		bestCost = cost;
+	}
+
+	int* s = s0;
+
+	while(p <= numPert) {
 		s = perturbation(s, numExchanges, n);
-		localSearch(s);
-		costS = getCost(s);
-		
-		if(costS < bestCost) {
-			bestCost = costS;
-			bestSolution = s;
+		cost = getCost(s, matrix, n);
+		localSearch(s, n);		
+		if(cost > bestCost) {
+			bestCost = cost;
 		}
+		printf("f(%d) = %d\n", p, bestCost);
 		p++;
 	}
 
-	//printf("g(%d) = %.15g\n", i, bestCost);*/
+	//printf("g(%d) = %.15g\n", i, bestCost);
+	
+	double elapsedSecs = double(clock() - begin) / CLOCKS_PER_SEC;
+	cout << elapsedSecs << endl;
 
 	return 0;
 }
