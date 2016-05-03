@@ -16,7 +16,7 @@
 using namespace std;
 
 const double MAX_FLOAT = std::numeric_limits<double>::max();
-const string DATASET = "data/n0500/n0500d001-1";
+const string DATASET = "data/n0500/n0500d100-5";
 int** matrix;
 int cost;
 int n;
@@ -26,7 +26,7 @@ int getCost(int* s, int** matrix, int n) {
 	int i1;
 	int j1;
 
-	for(int i = 0; i < n; i++) {
+	for(int i = 0; i < n-1; i++) {
 		i1 = s[i];
 		for(int j = i+1; j < n; j++) {
 			j1 = s[j];
@@ -85,6 +85,24 @@ void rotateLeft(int *v, const int start, const int n) {
 		v[i] = v[i+1];
 	}
 	v[n-1] = tmp;
+}
+
+int testInsert(int *v, const int i, const int j) {
+	int newcost = cost;
+
+	for(int k = i+1; k <= j; k++) {
+		newcost = newcost - matrix[v[i]][v[k]] + matrix[v[k]][v[i]];
+	}
+
+	return newcost;
+}
+
+void insert(int *v, const int i, const int j) {
+	int tmp = v[i];
+	for (int k = i; k < j; k++) {
+		v[k] = v[k+1];
+	}
+	v[j] = tmp;
 }
 
 void init(int *v, int n) {
@@ -178,12 +196,21 @@ void localSearch(int* s, const int n) {
 		for(int i = 0; i < n; i++) {
 			//i = sh[i1];
 			improving = false;
+			/*for(int j = i+1; j < n; j++) {
+				newcost = testInsert(s, i, j);
+				if(newcost > cost) {
+					insert(s, i, j);
+					cost = newcost;
+					improving = true;
+				}
+			}*/
 			newcost = testRotateLeft(s, i, n);
 			if(newcost > cost) {
 				rotateLeft(s, i, n);
 				cost = newcost;
 				improving = true;
 			}
+			//if(!improving) {
 			for(int j = i+1; j < n; j++) {
 				newcost = testSwap(s, i, j);
 				if(newcost > cost) {
@@ -192,6 +219,7 @@ void localSearch(int* s, const int n) {
 					improving = true;
 				}
 			}
+			//}
 		}
 	}
 }
@@ -218,6 +246,7 @@ int main() {
 
 	if(cost > bestCost) {
 		bestCost = cost;
+		bestSolution = s0;
 	}
 
 	int* s = s0;
@@ -228,6 +257,7 @@ int main() {
 		localSearch(s, n);		
 		if(cost > bestCost) {
 			bestCost = cost;
+			bestSolution = s;
 		}
 		printf("f(%d) = %d\n", p, bestCost);
 		p++;
@@ -235,6 +265,15 @@ int main() {
 
 	//printf("g(%d) = %.15g\n", i, bestCost);
 	
+	int sol[n];
+
+	for(int i = 0; i < n; i++) {
+		s[i] = bestSolution[i];
+	}
+
+	int c = getCost(s, matrix, n);
+	printf("c = %d\n", c);
+
 	double elapsedSecs = double(clock() - begin) / CLOCKS_PER_SEC;
 	cout << elapsedSecs << endl;
 
