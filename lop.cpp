@@ -19,7 +19,7 @@ using namespace std;
 #define pdi pair<double, int>
 
 const double MAX_FLOAT = std::numeric_limits<double>::max();
-const string DATASET = "data/n0500/n0500d050-5";
+const string DATASET = "data/n1000/n1000d050-4";
 int** matrix;
 int cost;
 int n;
@@ -65,6 +65,18 @@ int testSwap(int *v, const int i, const int j) {
 	return newcost;
 }
 
+// for i < j
+int testSwapConsec(int *v, const int i, const int j) {
+	int delta = matrix[v[j]][v[i]] - matrix[v[i]][v[j]];
+	return delta;
+}
+
+// for j < i
+int testSwapConsec_(int *v, const int i, const int j) {
+	int delta = matrix[v[i]][v[j]] - matrix[v[j]][v[i]];
+	return delta;
+}
+
 void swap(int *v, const int i, const int j) {
 	int t;
 	t = v[i];
@@ -90,6 +102,7 @@ void rotateLeft(int *v, const int start, const int n) {
 	v[n-1] = tmp;
 }
 
+// for i < j
 int testInsert(int *v, const int i, const int j) {
 	int newcost = cost;
 
@@ -100,10 +113,31 @@ int testInsert(int *v, const int i, const int j) {
 	return newcost;
 }
 
+// for j < i
+int testInsert_(int *v, const int i, const int j) {
+	int newcost = cost;
+
+	for(int k = j; k <= i; k++) {
+		newcost = newcost - matrix[v[k]][v[i]] + matrix[v[i]][v[k]];
+	}
+
+	return newcost;
+}
+
+// for i < j
 void insert(int *v, const int i, const int j) {
 	int tmp = v[i];
 	for (int k = i; k < j; k++) {
 		v[k] = v[k+1];
+	}
+	v[j] = tmp;
+}
+
+// for j < i
+void insert_(int *v, const int i, const int j) {
+	int tmp = v[i];
+	for (int k = i; k > j; k--) {
+		v[k] = v[k-1];
 	}
 	v[j] = tmp;
 }
@@ -185,7 +219,7 @@ void loadData(string input) {
 	in.close();
 }
 
-void localSearch(int* s, const int n) {
+/*void localSearch(int* s, const int n) {
 	int* sh = new int[n];
 	shuffle(sh, n);
 
@@ -197,16 +231,15 @@ void localSearch(int* s, const int n) {
 	while(improving) {
 		it++;
 		for(int i = 0; i < n; i++) {
-			//i = sh[i1];
 			improving = false;
-			/*for(int j = i+1; j < n; j++) {
+			for(int j = i+1; j < n; j++) {
 				newcost = testInsert(s, i, j);
 				if(newcost > cost) {
 					insert(s, i, j);
 					cost = newcost;
 					improving = true;
 				}
-			}*/
+			}
 			newcost = testRotateLeft(s, i, n);
 			if(newcost > cost) {
 				rotateLeft(s, i, n);
@@ -215,20 +248,93 @@ void localSearch(int* s, const int n) {
 			}
 			if(!improving) {
 				for(int j = i+1; j < n; j++) {
-					//j = sh[j1];
-					//if(i < n-1) {
 					newcost = testSwap(s, i, j);
 					if(newcost > cost) {
 						swap(s, i, j);
 						cost = newcost;
 						improving = true;
 					}
-					//}
 				}
 			}
 		}
 	}
 
+	delete [] sh;
+}*/
+
+/*void localSearch(int* s, const int n) {
+	int* sh = new int[n];
+	shuffle(sh, n);
+
+	int i, j;
+	int it = 0;
+	int newcost;
+	bool improving = true;
+	
+	while(improving) {
+		it++;
+		for(int i = 0; i < n; i++) {
+			improving = false;
+			for(int j = i-1; j >= 0; j--) {
+				newcost = testInsert_(s, i, j);
+				if(newcost > cost) {
+					insert_(s, i, j);
+					cost = newcost;
+					improving = true;
+				}
+			}
+			for(int j = i+1; j < n; j++) {
+				newcost = testInsert(s, i, j);
+				if(newcost > cost) {
+					insert(s, i, j);
+					cost = newcost;
+					improving = true;
+				}
+			}
+		}
+	}
+
+	delete [] sh;
+}*/
+
+void localSearch(int* s, const int n) {
+	int* sh = new int[n];
+	shuffle(sh, n);
+
+	int i, j, i1;
+	int it = 0;
+	int delta;
+	bool improving = true;
+
+	while(improving) {
+		it++;
+		improving = false;
+		for(int i = 0; i < n; i++) {
+			//i = sh[i0];
+			delta = 0;
+			i1 = i;
+			for(int j = i-1; j >= 0; j--) {
+				delta = delta + testSwapConsec_(s, i1, j);
+				if(delta > 0) {
+					insert_(s, i1, j);
+					improving = true;
+					delta = 0;
+					i1 = j;
+				}
+			}
+			delta = 0;
+			for(int j = i+1; j < n; j++) {
+				delta = delta + testSwapConsec(s, i1, j);
+				if(delta > 0) {
+					insert(s, i1, j);
+					improving = true;
+					delta = 0;
+					i1 = j;
+				}
+			}
+		}
+	}
+	cost = getCost(s, matrix, n);
 	delete [] sh;
 }
 
@@ -278,32 +384,40 @@ int* degrees() {
 	return kSmallest;
 }
 
+void verifySolution(int* bestSolution, int bestCost) {
+	int* sol = new int [n];
+	for(int i = 0; i < n; i++) {
+		sol[i] = bestSolution[i];
+	}
+	int c = getCost(sol, matrix, n);
+	printf("cost = %d\n", c);
+	if(c == bestCost) {
+		printf("Assert = %c\n", 'T');	
+	} else {
+		printf("Assert = %c\n", 'F');
+	}
+	delete [] sol;
+}
+
 int main() {
 	clock_t begin = clock();
 
 	srand(1607);
-	loadData(DATASET);
-
-	int* s0 = new int[n];
-	s0 = degrees();
-
+	
+	int* s = new int[n];
 	int bestCost = 0;
 	int* bestSolution;
 	int p = 1;
-	int numPert = 100;
-	int numExchanges = 5;
+	const int numPert = 100;
+	const int numExchanges = 5;
 
-	cost = getCost(s0, matrix, n);
-
-	localSearch(s0, n);
+	loadData(DATASET);
+	s = degrees();
+	cost = getCost(s, matrix, n);
+	localSearch(s, n);
 	printf("f(0) = %d\n", cost);
-
-	if(cost > bestCost) {
-		bestCost = cost;
-		bestSolution = s0;
-	}
-
-	int* s = bestSolution;
+	bestCost = cost;
+	bestSolution = s;
 
 	while(p <= numPert) {
 		s = perturbation(s, numExchanges, n);
@@ -317,20 +431,12 @@ int main() {
 		p++;
 	}
 
-	int* sol = new int [n];
-
-	for(int i = 0; i < n; i++) {
-		sol[i] = bestSolution[i];
-	}
-
-	int c = getCost(sol, matrix, n);
-	printf("c = %d\n", c);
+	verifySolution(bestSolution, bestCost);
 
 	double elapsedSecs = double(clock() - begin) / CLOCKS_PER_SEC;
 	cout << elapsedSecs << endl;
 
-	delete [] s0;
-	delete [] sol;
+	delete [] s;
 
 	return 0;
 }
