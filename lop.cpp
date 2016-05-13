@@ -15,8 +15,11 @@
 
 using namespace std;
 
+#define pii pair<int, int>
+#define pdi pair<double, int>
+
 const double MAX_FLOAT = std::numeric_limits<double>::max();
-const string DATASET = "data/n0500/n0500d100-5";
+const string DATASET = "data/n0500/n0500d050-5";
 int** matrix;
 int cost;
 int n;
@@ -183,10 +186,10 @@ void loadData(string input) {
 }
 
 void localSearch(int* s, const int n) {
-	//int sh[n];
-	//shuffle(sh, n);
+	int* sh = new int[n];
+	shuffle(sh, n);
 
-	int i;
+	int i, j;
 	int it = 0;
 	int newcost;
 	bool improving = true;
@@ -210,18 +213,69 @@ void localSearch(int* s, const int n) {
 				cost = newcost;
 				improving = true;
 			}
-			//if(!improving) {
-			for(int j = i+1; j < n; j++) {
-				newcost = testSwap(s, i, j);
-				if(newcost > cost) {
-					swap(s, i, j);
-					cost = newcost;
-					improving = true;
+			if(!improving) {
+				for(int j = i+1; j < n; j++) {
+					//j = sh[j1];
+					//if(i < n-1) {
+					newcost = testSwap(s, i, j);
+					if(newcost > cost) {
+						swap(s, i, j);
+						cost = newcost;
+						improving = true;
+					}
+					//}
 				}
 			}
-			//}
 		}
 	}
+
+	delete [] sh;
+}
+
+int* kSmallestIndices(int* v, int n, int k) {
+    int* n_closest = new int[k];
+    priority_queue< pii, vector < pii >, greater< pii > > q;
+
+    for(int i = 0; i < n; ++i) {
+        q.push(pii(v[i], i));
+    }
+    
+    int ki;
+    
+    for(int i = k-1; i >= 0; --i) {
+        ki = q.top().second;
+        n_closest[i] = ki;
+        q.pop();
+    }
+
+    return n_closest;
+}
+
+int* degrees() {
+	int* sumOut = new int[n];
+	int* sumIn = new int[n];
+	int* delta = new int[n];
+	
+	for(int i = 0; i < n; i++) {
+		sumOut[i] = 0;
+		sumIn[i] = 0;
+	}
+
+	for(int i = 0; i < n; i++) {
+		for(int j = 0; j < n; j++) {
+			sumOut[i] = sumOut[i] + matrix[i][j];
+			sumIn[i] = sumIn[i] + matrix[j][i];
+		}
+		delta[i] = sumOut[i] - sumIn[i];
+	}
+
+	int* kSmallest = kSmallestIndices(delta, n, n);
+
+	delete [] sumOut;
+	delete [] sumIn;
+	delete [] delta;
+	
+	return kSmallest;
 }
 
 int main() {
@@ -230,11 +284,11 @@ int main() {
 	srand(1607);
 	loadData(DATASET);
 
-	int s0[n];
-	shuffle(s0, n);
+	int* s0 = new int[n];
+	s0 = degrees();
 
 	int bestCost = 0;
-	int* bestSolution = new int[n];
+	int* bestSolution;
 	int p = 1;
 	int numPert = 100;
 	int numExchanges = 5;
@@ -249,7 +303,7 @@ int main() {
 		bestSolution = s0;
 	}
 
-	int* s = s0;
+	int* s = bestSolution;
 
 	while(p <= numPert) {
 		s = perturbation(s, numExchanges, n);
@@ -263,19 +317,20 @@ int main() {
 		p++;
 	}
 
-	//printf("g(%d) = %.15g\n", i, bestCost);
-	
-	int sol[n];
+	int* sol = new int [n];
 
 	for(int i = 0; i < n; i++) {
-		s[i] = bestSolution[i];
+		sol[i] = bestSolution[i];
 	}
 
-	int c = getCost(s, matrix, n);
+	int c = getCost(sol, matrix, n);
 	printf("c = %d\n", c);
 
 	double elapsedSecs = double(clock() - begin) / CLOCKS_PER_SEC;
 	cout << elapsedSecs << endl;
+
+	delete [] s0;
+	delete [] sol;
 
 	return 0;
 }
