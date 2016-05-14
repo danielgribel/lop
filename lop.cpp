@@ -5,21 +5,19 @@
 #include <sstream>
 #include <fstream>
 #include <cmath>
-#include <map>
 #include <ctime>
 #include <cstdlib>
-#include <set>
 #include <queue>
 #include <functional>
 #include <limits>
+#include <dirent.h>
+#include <vector>
+#include <algorithm>
 
-using namespace std;
-
-#define pii pair<int, int>
-#define pdi pair<double, int>
+#define pii std::pair<int, int>
+#define pdi std::pair<double, int>
 
 const double MAX_FLOAT = std::numeric_limits<double>::max();
-const string DATASET = "data/n1000/n1000d050-4";
 int** matrix;
 int cost;
 int n;
@@ -193,12 +191,12 @@ int* perturbation(int* s0, int k, int n) {
     return s;
 }
 
-void loadData(string input) {
+void loadData(std::string input) {
 	int x, y;
-	ifstream in(input.c_str());
+	std::ifstream in(input.c_str());
 
 	if(!in) {
-		cout << "Cannot open file.\n";
+		std::cout << "Cannot open file.\n";
 		return;
 	}
 
@@ -217,6 +215,13 @@ void loadData(string input) {
 	}
 
 	in.close();
+}
+
+void deleteMatrix(int** matrix, int n) {
+	for(int i = 0; i < n; i++) {
+		delete [] matrix[i];
+	}
+	delete [] matrix;
 }
 
 /*void localSearch(int* s, const int n) {
@@ -340,7 +345,7 @@ void localSearch(int* s, const int n) {
 
 int* kSmallestIndices(int* v, int n, int k) {
     int* n_closest = new int[k];
-    priority_queue< pii, vector < pii >, greater< pii > > q;
+    std::priority_queue< pii, std::vector < pii >, std::greater< pii > > q;
 
     for(int i = 0; i < n; ++i) {
         q.push(pii(v[i], i));
@@ -390,53 +395,83 @@ void verifySolution(int* bestSolution, int bestCost) {
 		sol[i] = bestSolution[i];
 	}
 	int c = getCost(sol, matrix, n);
-	printf("cost = %d\n", c);
-	if(c == bestCost) {
-		printf("Assert = %c\n", 'T');	
-	} else {
-		printf("Assert = %c\n", 'F');
-	}
+	printf("%10d ", c);
+	printf("%5d ", c == bestCost);
 	delete [] sol;
 }
 
-int main() {
+void run(std::string inputFile) {
 	clock_t begin = clock();
-
+	
 	srand(1607);
 	
-	int* s = new int[n];
+	//int* s = new int[n];
 	int bestCost = 0;
 	int* bestSolution;
-	int p = 1;
-	const int numPert = 100;
+	int it = 1;
+	int lastImprovement = 0;
 	const int numExchanges = 5;
+	const int itNoImprovement = 50;
+	const int maxIterations = 500;
 
-	loadData(DATASET);
-	s = degrees();
+	loadData(inputFile);
+	int* s = degrees();
 	cost = getCost(s, matrix, n);
 	localSearch(s, n);
-	printf("f(0) = %d\n", cost);
+	//printf("f(0) = %d\n", cost);
 	bestCost = cost;
 	bestSolution = s;
 
-	while(p <= numPert) {
+	while((it-lastImprovement < itNoImprovement) && (it < maxIterations)) {
 		s = perturbation(s, numExchanges, n);
 		cost = getCost(s, matrix, n);
-		localSearch(s, n);		
+		localSearch(s, n);
 		if(cost > bestCost) {
 			bestCost = cost;
 			bestSolution = s;
+			lastImprovement = it;
 		}
-		printf("f(%d) = %d\n", p, bestCost);
-		p++;
+		//printf("f(%d) = %d lastImprovement = %d\n", it, bestCost, lastImprovement);
+		it++;
 	}
+
+	std::cout << inputFile << " ";
 
 	verifySolution(bestSolution, bestCost);
 
 	double elapsedSecs = double(clock() - begin) / CLOCKS_PER_SEC;
-	cout << elapsedSecs << endl;
+	printf("%10f\n", elapsedSecs);
 
 	delete [] s;
+	deleteMatrix(matrix, n);
+}
 
+std::vector<std::string> listFiles(const char* folder) {
+    DIR *d;
+    struct dirent *dir;
+    int i = 0;
+    std::vector<std::string> files;
+
+    d = opendir(folder);
+
+    if(d) {
+        while((dir = readdir(d)) != NULL) {
+            i++;
+            if(dir->d_name[0] != '.') {
+                files.push_back(dir->d_name);    
+            }
+        }
+        closedir(d);
+    }
+    std::sort( files.begin(), files.end() );
+    return files;
+}
+
+int main() {
+	const char* FOLDER = "data/n1000/";
+    std::vector<std::string> files = listFiles(FOLDER);
+    for(int i = 0; i < files.size(); i++) {
+    	run(FOLDER + files[i]);
+    }
 	return 0;
 }
