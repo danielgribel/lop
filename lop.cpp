@@ -24,7 +24,10 @@ int cost;
 int n;
 double avgCost;
 double avgTime;
-const double epslon = 0.0000000;
+const double epslon = 0.0001;
+
+//int** simDegrees;
+//int* pos;
 
 int getCost(int* s, int** matrix, int n) {
 	int cost = 0;
@@ -70,6 +73,9 @@ void swap(int *v, const int i, const int j) {
 	t = v[i];
 	v[i] = v[j];
 	v[j] = t;
+
+	//pos[v[i]] = j;
+	//pos[v[j]] = i;
 }
 
 int testRotateLeft(int *v, const int i, const int n) {
@@ -117,8 +123,10 @@ void insert(int *v, const int i, const int j) {
 	int tmp = v[i];
 	for (int k = i; k < j; k++) {
 		v[k] = v[k+1];
+		//pos[v[k+1]] = k;
 	}
 	v[j] = tmp;
+	//pos[tmp] = i;
 }
 
 // for j < i
@@ -126,14 +134,10 @@ void insert_(int *v, const int i, const int j) {
 	int tmp = v[i];
 	for (int k = i; k > j; k--) {
 		v[k] = v[k-1];
+		//pos[v[k-1]] = k;
 	}
 	v[j] = tmp;
-}
-
-void init(int *v, int n) {
-	for(int i = 0; i < n; i++) {
-		v[i] = i;
-	}
+	//pos[tmp] = i;
 }
 
 void shuffle(int *myArray, size_t n) {
@@ -162,8 +166,13 @@ int* perturbation(int* s0, int k, int n) {
     }
 
     for(int i = 0; i < 2*k; i = i+2) {
-    	cost = testSwap(s, randItems[i], randItems[i+1]);
-        swap(s, randItems[i], randItems[i+1]);
+    	if(randItems[i] < randItems[i+1]) {
+    		cost = testSwap(s, randItems[i], randItems[i+1]);	
+    		swap(s, randItems[i], randItems[i+1]);
+    	} else {
+    		cost = testSwap(s, randItems[i+1], randItems[i]);	
+    		swap(s, randItems[i+1], randItems[i]);
+    	}
     }
 
     delete [] randItems;
@@ -206,48 +215,9 @@ void deleteMatrix(int** matrix, int n) {
 	delete [] matrix;
 }
 
-/*void localSearch(int* s, const int n) {
-	int* sh = new int[n];
-	shuffle(sh, n);
-
-	int i, j;
-	int it = 0;
-	int newcost;
-	bool improving = true;
-	
-	while(improving) {
-		it++;
-		for(int i = 0; i < n; i++) {
-			improving = false;
-			for(int j = i+1; j < n; j++) {
-				newcost = testInsert(s, i, j);
-				if(newcost > cost) {
-					insert(s, i, j);
-					cost = newcost;
-					improving = true;
-				}
-			}
-			newcost = testRotateLeft(s, i, n);
-			if(newcost > cost) {
-				rotateLeft(s, i, n);
-				cost = newcost;
-				improving = true;
-			}
-			if(!improving) {
-				for(int j = i+1; j < n; j++) {
-					newcost = testSwap(s, i, j);
-					if(newcost > cost) {
-						swap(s, i, j);
-						cost = newcost;
-						improving = true;
-					}
-				}
-			}
-		}
-	}
-
-	delete [] sh;
-}*/
+int testInsertConsec(int* v, int i, int j) {
+	return diff[v[j]][v[i]];
+}
 
 void localSearch(int* s, const int n) {
 	int* sh = new int[n];
@@ -266,8 +236,8 @@ void localSearch(int* s, const int n) {
 			delta = 0;
 			i1 = i;
 			for(int j = i-1; j >= 0; j--) {
+				//delta = delta + testInsertConsec(s, i1, j);
 				delta = delta + diff[s[i1]][s[j]];
-				//if((1.0*(cost+delta)) > ((1-epslon)*cost)) {
 				if(delta > 0) {
 					insert_(s, i1, j);
 					improving = true;
@@ -277,8 +247,8 @@ void localSearch(int* s, const int n) {
 			}
 			delta = 0;
 			for(int j = i+1; j < n; j++) {
+				//delta = delta + testInsertConsec(s, j, i1);
 				delta = delta + diff[s[j]][s[i1]];
-				//if((1.0*(cost+delta)) > ((1-epslon)*cost)) {
 				if(delta > 0) {
 					insert(s, i1, j);
 					improving = true;
@@ -286,9 +256,12 @@ void localSearch(int* s, const int n) {
 					i1 = j;
 				}
 			}
+			//checkSwap(s, i);
 		}
 	}
+
 	cost = getCost(s, matrix, n);
+
 	delete [] sh;
 }
 
@@ -301,11 +274,14 @@ int* kSmallestIndices(int* v, int n, int k) {
     }
     
     int ki;
+
+    //pos = new int[n];
     
     for(int i = k-1; i >= 0; --i) {
         ki = q.top().second;
         n_closest[i] = ki;
         q.pop();
+        //pos[ki] = i;
     }
 
     return n_closest;
@@ -332,15 +308,51 @@ int* initialSolution() {
 	}
 
 	int* kSmallest = kSmallestIndices(delta, n, n);
+	
+	/*simDegrees = new int*[n];
+	const int degreesSize = 4;
+
+	for(int i = 0; i < n; i++) {
+		simDegrees[i] = new int[degreesSize];
+	}
+
+	for(int i = 0; i < n; i++) {
+		if(i == 0) {
+			simDegrees[kSmallest[i]][0] = kSmallest[i+1];
+			simDegrees[kSmallest[i]][1] = kSmallest[i+2];
+			simDegrees[kSmallest[i]][2] = kSmallest[i+3];
+			simDegrees[kSmallest[i]][3] = kSmallest[i+4];
+		} else if(i == 1) {
+			simDegrees[kSmallest[i]][0] = kSmallest[i-1];
+			simDegrees[kSmallest[i]][1] = kSmallest[i+1];
+			simDegrees[kSmallest[i]][2] = kSmallest[i+2];
+			simDegrees[kSmallest[i]][3] = kSmallest[i+3];
+		} else if(i == n-1) {
+			simDegrees[kSmallest[i]][0] = kSmallest[i-1];
+			simDegrees[kSmallest[i]][1] = kSmallest[i-2];
+			simDegrees[kSmallest[i]][2] = kSmallest[i-3];
+			simDegrees[kSmallest[i]][3] = kSmallest[i-4];
+		} else if(i == n-2) {
+			simDegrees[kSmallest[i]][0] = kSmallest[i+1];
+			simDegrees[kSmallest[i]][1] = kSmallest[i-1];
+			simDegrees[kSmallest[i]][2] = kSmallest[i-2];
+			simDegrees[kSmallest[i]][3] = kSmallest[i-3];
+		} else {
+			simDegrees[kSmallest[i]][0] = kSmallest[i-1];
+			simDegrees[kSmallest[i]][1] = kSmallest[i-2];
+			simDegrees[kSmallest[i]][2] = kSmallest[i+1];
+			simDegrees[kSmallest[i]][3] = kSmallest[i+2];
+		}
+	}*/
 
 	delete [] sumOut;
 	delete [] sumIn;
 	delete [] delta;
-	
+
 	return kSmallest;
 }
 
-void verifySolution(std::string inputFile, int* bestSolution, int bestCost) {
+void verifySolution(std::string inputFile, int* bestSolution, int bestCost, double elapsedSecs) {
 	int* sol = new int [n];
 	for(int i = 0; i < n; i++) {
 		sol[i] = bestSolution[i];
@@ -349,26 +361,27 @@ void verifySolution(std::string inputFile, int* bestSolution, int bestCost) {
 	avgCost = avgCost + c;
 
 	std::cout << inputFile << " ";
-	printf("%10d ", c);
-	printf("%5d ", c == bestCost);
+	printf("%d ", c);
+	printf("%d ", c == bestCost);
+	printf("%f\n", elapsedSecs);
 	
 	delete [] sol;
 }
 
 void run(std::string inputFile) {
-	clock_t begin = clock();
-	
 	srand(1607);
+	loadData(inputFile);
+
+	clock_t begin = clock();
 
 	int bestCost = 0;
 	int* bestSolution;
 	int it = 1;
 	int lastImprovement = 0;
-	const int numExchanges = 5;
+	const int numExchanges = 10;
 	const int itNoImprovement = 100;
 	const int maxIterations = 500;
 	
-	loadData(inputFile);
 	int* s = initialSolution();
 	localSearch(s, n);
 	//printf("f(0) = %d\n", cost);
@@ -382,21 +395,25 @@ void run(std::string inputFile) {
 			bestCost = cost;
 			bestSolution = s;
 			lastImprovement = it;
+		} 
+		if((1.0*cost) < ((1-epslon)*bestCost)) {
+			s = bestSolution;
 		}
 		//printf("f(%d) = %d lastImprovement = %d\n", it, bestCost, lastImprovement);
 		it++;
 	}
 
-	verifySolution(inputFile, bestSolution, bestCost);
-
 	double elapsedSecs = double(clock() - begin) / CLOCKS_PER_SEC;
-	printf("%10f\n", elapsedSecs);
-
+	
 	avgTime = avgTime + elapsedSecs;
 
-	delete [] s;
+	verifySolution(inputFile, bestSolution, bestCost, elapsedSecs);
+
 	deleteMatrix(matrix, n);
 	deleteMatrix(diff, n);
+	//deleteMatrix(simDegrees, n);
+	//delete [] pos;
+	delete [] s;	
 }
 
 std::vector<std::string> listFiles(const char* folder) {
@@ -421,7 +438,7 @@ std::vector<std::string> listFiles(const char* folder) {
 }
 
 int main() {
-	const char* FOLDER = "data/n0500/";
+	const char* FOLDER = "data/n2000/";
 
 	avgCost = 0.0;
 	avgTime = 0.0;
@@ -434,6 +451,6 @@ int main() {
     
     printf("avg cost = %.10f\n", avgCost/files.size());
     printf("avg time = %.10f\n", avgTime/files.size());
-	
+
 	return 0;
 }
